@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aim Trainer</title>
+    <!-- Tailwind CSS CDN for easy styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles to ensure full height and responsiveness */
+        body {
+            font-family: "Inter", sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh; /* Ensure body takes full viewport height */
+            margin: 0;
+            background-color: #f0f4f8; /* Light blue-gray background */
+        }
+        #game-container {
+            width: 90vw; /* Responsive width */
+            max-width: 800px; /* Max width for larger screens */
+            height: 70vh; /* Responsive height */
+            max-height: 600px; /* Max height */
+            background-color: #ffffff; /* White background for the game area */
+            border-radius: 1rem; /* Rounded corners */
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); /* Soft shadow */
+            position: relative; /* For absolutely positioned targets */
+            overflow: hidden; /* Hide targets going out of bounds */
+            cursor: crosshair; /* Indicate interactive area */
+            border: 2px solid #cbd5e1; /* Light gray border */
+        }
+        .target {
+            position: absolute;
+            background-color: #ef4444; /* Red target */
+            border-radius: 50%; /* Circular shape */
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            transition: transform 0.1s ease-out; /* Pop effect on click */
+            user-select: none; /* Prevent text selection */
+            -webkit-user-select: none; /* For Safari */
+            -moz-user-select: none; /* For Firefox */
+            -ms-user-select: none; /* For IE/Edge */
+            display: flex; /* Centering text/icon */
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-weight: bold;
+        }
+        .target:active {
+            transform: scale(0.9); /* Slightly shrink on click */
+        }
+        #message-box {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 1.5rem 2.5rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            display: none; /* Hidden by default */
+            font-size: 1.25rem;
+            text-align: center;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex flex-col items-center justify-center p-4">
+    <div id="message-box" class="hidden"></div>
+
+    <h1 class="text-4xl font-extrabold mb-8 text-gray-800 text-center">Aim Trainer</h1>
+
+    <div id="game-container" class="relative overflow-hidden flex flex-col items-center justify-center">
+        <div id="game-overlay" class="absolute inset-0 bg-white bg-opacity-90 flex flex-col items-center justify-center z-10 p-4 rounded-xl">
+            <h2 class="text-3xl font-bold mb-4 text-gray-700">Ready to Train?</h2>
+            <p class="text-gray-600 mb-6 text-lg text-center">Click the 'Start Game' button to begin your aim training session. Targets will appear, click them as fast as you can!</p>
+            <button id="startButton" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-full shadow-lg transform transition-all duration-200 hover:scale-105 active:scale-95 text-xl">
+                Start Game
+            </button>
+        </div>
+
+        <div class="absolute top-4 left-4 right-4 flex justify-between items-center z-20">
+            <div class="bg-indigo-500 text-white text-lg font-semibold px-4 py-2 rounded-lg shadow-md">
+                Score: <span id="score">0</span>
+            </div>
+            <div class="bg-green-500 text-white text-lg font-semibold px-4 py-2 rounded-lg shadow-md">
+                Time: <span id="time">30</span>s
+            </div>
+        </div>
+
+        <!-- Targets will be appended here by JavaScript -->
+    </div>
+
+    <div class="mt-8 flex space-x-4">
+        <button id="resetButton" class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-5 rounded-full shadow-lg transform transition-all duration-200 hover:scale-105 active:scale-95 text-lg hidden">
+            Reset Game
+        </button>
+    </div>
+
+    <script>
+        // Global variables for game state
+        let score = 0;
+        let timeLeft = 30; // seconds
+        let gameInterval;
+        let targetSpawnInterval;
+        let gameStarted = false;
+        let targetCount = 0; // To keep track of targets on screen
+
+        // DOM element references
+        const gameContainer = document.getElementById('game-container');
+        const scoreDisplay = document.getElementById('score');
+        const timeDisplay = document.getElementById('time');
+        const startButton = document.getElementById('startButton');
+        const resetButton = document.getElementById('resetButton');
+        const gameOverlay = document.getElementById('game-overlay');
+        const messageBox = document.getElementById('message-box');
+
+        /**
+         * Displays a message in a transient box on the screen.
+         * @param {string} message - The message to display.
+         * @param {number} duration - How long the message should be visible in milliseconds.
+         */
+        function showMessageBox(message, duration = 2000) {
+            messageBox.textContent = message;
+            messageBox.style.display = 'block';
+            setTimeout(() => {
+                messageBox.style.display = 'none';
+            }, duration);
+        }
+
+        /**
+         * Spawns a new target at a random position within the game container.
+         */
+        function spawnTarget() {
+            if (!gameStarted || targetCount >= 10) return; // Limit number of targets on screen
+
+            const target = document.createElement('div');
+            target.classList.add('target');
+            target.textContent = '🎯'; // Using an emoji for the target
+            target.style.width = '50px'; // Slightly larger targets
+            target.style.height = '50px';
+            target.style.fontSize = '1.5rem';
+
+            // Calculate random positions within the game container boundaries
+            // Accounting for target size to prevent overflow
+            const containerWidth = gameContainer.offsetWidth;
+            const containerHeight = gameContainer.offsetHeight;
+            const targetSize = parseInt(target.style.width); // Get numerical value
+
+            const randomX = Math.floor(Math.random() * (containerWidth - targetSize));
+            const randomY = Math.floor(Math.random() * (containerHeight - targetSize));
+
+            target.style.left = `${randomX}px`;
+            target.style.top = `${randomY}px`;
+
+            target.addEventListener('click', (event) => {
+                event.stopPropagation(); // Prevent click from bubbling to gameContainer
+                score++;
+                scoreDisplay.textContent = score;
+                targetCount--;
+                target.remove(); // Remove clicked target
+                // Immediately spawn a new target to keep the action going
+                if (gameStarted) spawnTarget();
+            });
+
+            // Remove target after a short delay if not clicked to keep the game challenging
+            const targetTimeout = setTimeout(() => {
+                if (target.parentNode) { // Check if target still exists in DOM
+                    targetCount--;
+                    target.remove();
+                }
+            }, 1500); // Target disappears after 1.5 seconds
+
+            gameContainer.appendChild(target);
+            targetCount++;
+        }
+
+        /**
+         * Updates the game timer and ends the game when time runs out.
+         */
+        function updateTimer() {
+            timeLeft--;
+            timeDisplay.textContent = timeLeft;
+
+            if (timeLeft <= 0) {
+                endGame();
+            }
+        }
+
+        /**
+         * Starts the game by initializing state, hiding overlay, and setting intervals.
+         */
+        function startGame() {
+            score = 0;
+            timeLeft = 30; // Reset time
+            scoreDisplay.textContent = score;
+            timeDisplay.textContent = timeLeft;
+            gameStarted = true;
+            targetCount = 0;
+
+            gameOverlay.classList.add('hidden'); // Hide the overlay
+            resetButton.classList.remove('hidden'); // Show reset button
+
+            // Clear any existing targets from previous games
+            document.querySelectorAll('.target').forEach(t => t.remove());
+
+            // Start game timer
+            gameInterval = setInterval(updateTimer, 1000); // Update every second
+
+            // Spawn targets every 700ms
+            targetSpawnInterval = setInterval(spawnTarget, 700);
+
+            // Spawn initial targets immediately
+            for (let i = 0; i < 3; i++) {
+                spawnTarget();
+            }
+        }
+
+        /**
+         * Ends the game, clears intervals, and displays final score.
+         */
+        function endGame() {
+            gameStarted = false;
+            clearInterval(gameInterval);
+            clearInterval(targetSpawnInterval);
+
+            // Remove all remaining targets
+            document.querySelectorAll('.target').forEach(target => target.remove());
+            targetCount = 0;
+
+            showMessageBox(`Game Over! Your final score: ${score} points!`, 5000); // Display final score
+            gameOverlay.classList.remove('hidden'); // Show overlay again with start button
+            startButton.textContent = 'Play Again'; // Change button text
+        }
+
+        /**
+         * Resets the game to its initial state, ready for a new game.
+         */
+        function resetGame() {
+            clearInterval(gameInterval);
+            clearInterval(targetSpawnInterval);
+            score = 0;
+            timeLeft = 30;
+            scoreDisplay.textContent = score;
+            timeDisplay.textContent = timeLeft;
+            gameStarted = false;
+            targetCount = 0;
+
+            // Remove all targets
+            document.querySelectorAll('.target').forEach(target => target.remove());
+
+            gameOverlay.classList.remove('hidden'); // Show overlay
+            startButton.textContent = 'Start Game'; // Reset button text
+            resetButton.classList.add('hidden'); // Hide reset button
+        }
+
+        // Event Listeners
+        startButton.addEventListener('click', startGame);
+        resetButton.addEventListener('click', resetGame);
+
+        // Optional: Clicking on the container (miss) can decrease score or show feedback
+        gameContainer.addEventListener('click', () => {
+            if (gameStarted) {
+                showMessageBox("Miss!", 500);
+            }
+        });
+
+        // Ensure the game is responsive by adjusting target positions on resize
+        window.addEventListener('resize', () => {
+            if (gameStarted) {
+                // If game is active, targets might go out of bounds.
+                // Re-position existing targets or remove/re-spawn them.
+                // For simplicity, we'll just ensure new targets spawn correctly.
+                // A more complex game might need to re-evaluate all target positions.
+            }
+        });
+
+    </script>
+</body>
+</html>
