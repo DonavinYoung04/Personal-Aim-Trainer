@@ -1,7 +1,7 @@
-Aim Trainer Game
+**Aim Trainer Game**
 This repository contains the source code for a simple, browser-based Aim Trainer game. Designed to enhance mouse accuracy and reaction time, this application presents a series of dynamically appearing targets that users must click within a set time limit.
 
-🎯 Features
+**Features**
 The Aim Trainer application offers the following core features:
 
 Responsive User Interface: The game's layout and interactive elements are optimized for various screen sizes, ensuring a consistent experience across desktop, tablet, and mobile devices.
@@ -20,7 +20,7 @@ Session Summary: A clear "Game Over" message presents the user's final score upo
 
 Feedback Mechanism: Provides immediate visual feedback ("Miss!") when a click occurs outside a target area, aiding in user improvement.
 
-🎮 How to Play
+**How to Play**
 To run and play the Aim Trainer game:
 
 Clone or Download: Obtain the HTML source code. If cloning from a repository, use git clone [repository-url].
@@ -35,13 +35,13 @@ Monitor Progress: The current score is displayed in the top-left corner, and the
 
 Session End: The game concludes automatically once the 30-second timer expires. Your final score will be presented.
 
-Replay Options:
+**Replay Options:**
 
 To start a new session immediately, click "Play Again" on the game-over overlay.
 
 To reset all game parameters and return to the initial state, click the "Reset Game" button (visible during and after a game session).
 
-⚙️ Technologies Used
+** Technologies Used**
 The Aim Trainer game is built using standard web technologies:
 
 HTML5: Provides the foundational structure and content of the web page.
